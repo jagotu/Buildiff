@@ -28,14 +28,9 @@ namespace Buildiff.FileFormats
         {
             byte[] oldHash;
             byte[] newHash;
-            using (var oldStream = new BufferedStream(oldFile, 1200000))
-            {
-                oldHash = md5.ComputeHash(oldStream);
-            }
-            using (var newStream = new BufferedStream(newFile, 1200000))
-            {
-                newHash = md5.ComputeHash(newStream);
-            }
+            
+            oldHash = md5.ComputeHash(oldFile);
+            newHash = md5.ComputeHash(newFile);
             return newHash.SequenceEqual(oldHash);
         }
 

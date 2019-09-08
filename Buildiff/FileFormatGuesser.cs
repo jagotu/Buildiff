@@ -13,7 +13,15 @@ namespace Buildiff
         static Dictionary<string, IFileFormat[]> formats = new Dictionary<string, IFileFormat[]>
         {
             { "___", new IFileFormat[] {new MSCabFormat()} },
-            { "cab", new IFileFormat[] {new MSCabFormat()} }
+            { "cab", new IFileFormat[] {new MSCabFormat()} },
+            { "bmp", new IFileFormat[] {new ImageFormat()} },
+            { "gif", new IFileFormat[] {new ImageFormat()} },
+            { "jpg", new IFileFormat[] {new ImageFormat()} },
+            { "jpeg", new IFileFormat[] {new ImageFormat()} },
+            { "png", new IFileFormat[] {new ImageFormat()} },
+            { "tiff", new IFileFormat[] {new ImageFormat()} },
+            { "exe", new IFileFormat[] {new CILFormat()} },
+            { "dll", new IFileFormat[] {new CILFormat()} }
         };
 
 
@@ -32,6 +40,7 @@ namespace Buildiff
                 }
                 else
                 {
+                    ec.ReportExtra(Extras.Format, format.ToString());
                     format.Compare(oldFile, newFile, ec);
                 }
             }
@@ -39,12 +48,33 @@ namespace Buildiff
 
         public static void HashGuessCompare(Stream oldFile, Stream newFile, string filename, ExportContext ec)
         {
+            bool memoryStreamsCreated = false;
+            Stream oldSeekable;
+            Stream newSeekable;
+            if (!oldFile.CanSeek || !newFile.CanSeek)
+            {
+                //Guessing requires ablity to seek back to beginning
+                oldSeekable = new MemoryStream();
+                newSeekable = new MemoryStream();
+                oldFile.CopyTo(oldSeekable);
+                newFile.CopyTo(newSeekable);
+                oldSeekable.Seek(0, SeekOrigin.Begin);
+                newSeekable.Seek(0, SeekOrigin.Begin);
+                memoryStreamsCreated = true;
+            } else
+            {
+                oldSeekable = oldFile;
+                newSeekable = newFile;
+            }
+        
+
             if (UnknownBinaryFormat.HashCompare(oldFile, newFile))
             {
                 ec.ReportSelf(CompareResult.Identical);
             }
             else
             {
+                oldSeekable.Seek(0, SeekOrigin.Begin);
                 IFileFormat format = FileFormatGuesser.GuessFileFormat(filename, oldFile);
                 if (format == null || !format.CanLoad(newFile))
                 {
@@ -52,8 +82,17 @@ namespace Buildiff
                 }
                 else
                 {
-                    format.Compare(oldFile, newFile, ec);
+                    oldSeekable.Seek(0, SeekOrigin.Begin);
+                    newSeekable.Seek(0, SeekOrigin.Begin);
+                    ec.ReportExtra(Extras.Format, format.ToString());
+                    format.Compare(oldSeekable, newSeekable, ec);
                 }
+            }
+
+            if(memoryStreamsCreated)
+            {
+                oldSeekable.Dispose();
+                newSeekable.Dispose();
             }
         }
 
